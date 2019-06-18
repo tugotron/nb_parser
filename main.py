@@ -65,9 +65,6 @@ class Bot:
         data = self.last_update
         self.updater.bot.send_message(context.message.chat_id, data)
 
-    # def sayhi(self, bot, job):
-    #     job.context.message.reply_text("hi")
-
     def time(self, bot, update, job_queue):
         job = job_queue.run_repeating(self.sessions, 5, context=update)
 
