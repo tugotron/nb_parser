@@ -2,7 +2,7 @@ import os
 import logging
 import requests
 from lxml import html
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, InlineQueryHandler
+from telegram.ext import Updater, CommandHandler
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -54,9 +54,7 @@ class Bot:
         self.updater = Updater(token=os.environ['BOT_TOKEN'])
         self.dispatcher = self.updater.dispatcher
         self.last_update = Parser().get_sessions()
-
-    def start(self, update, context):
-        self.updater.bot.send_message(context.message.chat_id, 'start handler')
+        self.ids = set()
 
     def help(self, update, context):
         pass
@@ -65,11 +63,17 @@ class Bot:
         data = self.last_update
         self.updater.bot.send_message(context.message.chat_id, data)
 
+    def sayhi(self, bot, job):
+        new_data = Parser().get_sessions()
+        # if self.last_update != new_data:
+        #     for _id in self.ids:
+        self.updater.bot.send_message(job.context.message.chat_id, new_data)  # job.context.message.reply_text('')
+
     def time(self, bot, update, job_queue):
-        job = job_queue.run_repeating(self.sessions, 5, context=update)
+        job_queue.run_repeating(self.sayhi, 5, context=update)
 
     def handlers(self):
-        start_handler = CommandHandler('start', self.start)
+        start_handler = CommandHandler('start', self.time, pass_job_queue=True)
         self.dispatcher.add_handler(start_handler)
 
         help_handler = CommandHandler('help', self.help)
@@ -78,14 +82,11 @@ class Bot:
         sessions_handler = CommandHandler('sessions', self.sessions)
         self.dispatcher.add_handler(sessions_handler)
 
-        message_handler = CommandHandler('start', self.time, pass_job_queue=True)
-        self.dispatcher.add_handler(message_handler)
-
     def run(self):
         self.handlers()
 
         self.updater.start_polling()
-        # self.updater.idle()
+        self.updater.idle()
 
 
 if __name__ == '__main__':
