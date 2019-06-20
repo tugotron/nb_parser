@@ -1,30 +1,28 @@
 from peewee import SqliteDatabase, Model, IntegerField, IntegrityError, DoesNotExist
 
 
-db = SqliteDatabase('chat_ids.db')
+DB = SqliteDatabase('chat_ids.db')
 
 
 class Chat(Model):
     chat_id = IntegerField(unique=True)
 
     class Meta:
-        database = db
+        database = DB
 
 
 class Gateway:
     def __init__(self):
-        self.db = SqliteDatabase('chat_ids.db')
+        self.db = DB
         self.db.connect()
+        self.db.create_tables([Chat])
 
     def __del__(self):
         self.db.close()
 
-    def create_tables(self):
-        db.create_tables([Chat])
-
     def save(self, chat_id):
         try:
-            with db.atomic():
+            with self.db.atomic():
                 Chat.create(chat_id=chat_id)
         except IntegrityError:
             pass
@@ -34,7 +32,7 @@ class Gateway:
 
     def remove_id(self, chat_id):
         try:
-            with db.atomic():
+            with self.db.atomic():
                 instance = Chat.get(Chat.chat_id == chat_id)
                 instance.delete_instance()
         except DoesNotExist:

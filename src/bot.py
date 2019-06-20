@@ -1,6 +1,8 @@
 import os
 import logging
+
 from telegram.ext import Updater, CommandHandler
+from telegram.error import TelegramError
 
 from .parser import Parser
 from .db import Gateway
@@ -15,15 +17,11 @@ class Bot:
         self.parser = Parser()
         self.last_update = self.parser.get_sessions()
         self.db = Gateway()
+        self.all_ids = self.db.get_ids()
 
-    def save_id(self, user_id):
-        self.db.save(user_id)
-
-    def get_ids(self):
-        return self.db.get_ids()
-
-    def help(self, update, context):
-        pass
+    def stop(self, update, context):
+        self.db.remove_id(chat_id=context.message.chat_id)
+        self.all_ids = self.db.get_ids()
 
     def sessions(self, update, context):
         data = self.last_update
@@ -31,24 +29,28 @@ class Bot:
 
     def worker(self, bot, job):
         new_data = self.parser.get_sessions()
-        chat_id = job.context.message.chat_id
-        self.db.save(chat_id)
-        if self.last_update != new_data:
-            for _id in self.db.get_ids():
-                self.updater.bot.send_message(_id, new_data)  # job.context.message.reply_text('')
+
+        try:
+            if self.last_update != new_data:
+                for _id in self.all_ids:
+                    self.updater.bot.send_message(_id, new_data)  # job.context.message.reply_text('')
+                    self.last_update = new_data
+        except TelegramError:
+            self.db.remove_id(chat_id=job.context.message.chat_id)
+            self.all_ids = self.db.get_ids()
 
     def start(self, bot, update, job_queue):
-        job_queue.run_repeating(self.worker, 5, context=update)
+        self.db.save(update.message.chat_id)
+        self.all_ids = self.db.get_ids()
 
-    def stop(self, user_id):
-        self.db.remove_id(user_id)
+        job_queue.run_repeating(self.worker, 5, context=update)
 
     def handlers(self):
         start_handler = CommandHandler('start', self.start, pass_job_queue=True)
         self.dispatcher.add_handler(start_handler)
 
-        help_handler = CommandHandler('help', self.help)
-        self.dispatcher.add_handler(help_handler)
+        stop_handler = CommandHandler('stop', self.stop)
+        self.dispatcher.add_handler(stop_handler)
 
         sessions_handler = CommandHandler('sessions', self.sessions)
         self.dispatcher.add_handler(sessions_handler)

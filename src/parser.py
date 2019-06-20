@@ -15,7 +15,7 @@ class Parser:
             # res += f'{k}\n'
             # res += '\n'.join([f'▫️ {v}' for v in arr[k]])
             # res += '\n\n'
-        return res
+        return res or 'No sessions'
 
     def get_sessions(self):
         try:
